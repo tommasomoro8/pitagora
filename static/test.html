@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pitagora AI Voice Client</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; text-align: center; background: #222; color: #fff; }
+        button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; border-radius: 8px; border: none; margin: 10px; transition: 0.2s; }
+        
+        .btn-primary { background-color: #3b82f6; color: white; }
+        .btn-primary:hover { background-color: #2563eb; }
+
+        .btn-record { background-color: #ef4444; color: white; }
+        .btn-record:active, .recording { background-color: #b91c1c; box-shadow: inset 0 0 10px #000; transform: scale(0.98); }
+        .btn-record:disabled { background-color: #555; cursor: not-allowed; }
+
+        #console { text-align: left; background: #111; padding: 1rem; height: 300px; overflow-y: auto; border: 1px solid #444; font-family: monospace; margin-top: 20px; font-size: 0.9rem; }
+        .log-user { color: #86efac; }
+        .log-server { color: #93c5fd; }
+        .log-sys { color: #aaa; }
+        
+        #session-info { margin-bottom: 20px; padding: 10px; background: #333; border-radius: 5px; display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>🎙️ Pitagora AI Chat</h1>
+
+    <div id="step-setup">
+        <button class="btn-primary" onclick="createSession()">1. Avvia Nuova Sessione</button>
+    </div>
+
+    <div id="step-chat" style="display: none;">
+        <div id="session-info">
+            Session ID: <code id="disp-sess">...</code><br>
+            <small>Password: <code id="disp-pass">...</code></small>
+        </div>
+
+        <button id="recordBtn" class="btn-record" disabled>
+            🎙️ Tieni premuto per parlare
+        </button>
+
+        <p id="status">In attesa...</p>
+    </div>
+
+    <div id="console"></div>
+
+    <script>
+        const API_URL = "http://localhost:3000"; 
+        let socket;
+        let sessionId = null;
+        let sessionPassword = null;
+        
+        // Variabili Audio
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioQueue = []; // Coda per i file audio in arrivo
+        let isPlaying = false; // Flag per sapere se stiamo riproducendo
+
+        // --- UTILITY: CONVERTE BASE64 IN BLOB (Per evitare errori CSP) ---
+        function base64ToBlob(base64, mimeType) {
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: mimeType });
+        }
+
+        // --- 1. SETUP SESSIONE ---
+        async function createSession() {
+            log("Creazione sessione in corso...", "sys");
+            try {
+                const res = await fetch(`${API_URL}/new-session`, { method: "POST" });
+                const data = await res.json();
+
+                if (!data.sessionId) throw new Error("Risposta server non valida");
+
+                sessionId = data.sessionId;
+                sessionPassword = data.writePermissionPassword;
+
+                document.getElementById("disp-sess").innerText = sessionId;
+                document.getElementById("disp-pass").innerText = sessionPassword;
+                
+                document.getElementById("step-setup").style.display = "none";
+                document.getElementById("step-chat").style.display = "block";
+
+                connectSocket();
+                initMicrophone();
+
+            } catch (e) {
+                log("Errore creazione sessione: " + e, "sys");
+            }
+        }
+
+        // --- 2. SOCKET.IO ---
+        function connectSocket() {
+            socket = io(API_URL);
+
+            socket.on("connect", () => {
+                log("Socket connesso!", "sys");
+                // Entriamo nella stanza usando l'ID sessione
+                socket.emit("join-session", sessionId);
+            });
+
+            // Ricezione Audio (Pezzo di frase)
+            socket.on("audio-response", (data) => {
+                log(`Ricevuto audio: "${data.text}"`, "server");
+                addToAudioQueue(data.audio);
+            });
+
+            socket.on("audio-response-end", () => {
+                log("--- Risposta AI terminata ---", "sys");
+            });
+
+            socket.on("connect_error", (err) => {
+                log("Errore connessione socket: " + err, "sys");
+            });
+        }
+
+        // --- 3. MICROFONO & REGISTRAZIONE ---
+        async function initMicrophone() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                const btn = document.getElementById("recordBtn");
+                btn.disabled = false;
+
+                // Eventi Mouse/Touch per Push-to-Talk
+                btn.onmousedown = startRecording;
+                btn.onmouseup = stopAndSend;
+                
+                // Supporto touch per mobile
+                btn.ontouchstart = (e) => { e.preventDefault(); startRecording(); };
+                btn.ontouchend = (e) => { e.preventDefault(); stopAndSend(); };
+
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    if (audioChunks.length === 0) return;
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' }); 
+                    await sendAudioToServer(audioBlob);
+                    audioChunks = []; // Reset
+                };
+
+            } catch (err) {
+                log("Errore accesso microfono: " + err, "sys");
+                alert("Impossibile accedere al microfono. Controlla i permessi del browser.");
+            }
+        }
+
+        function startRecording() {
+            if (mediaRecorder && mediaRecorder.state === "inactive") {
+                document.getElementById("recordBtn").classList.add("recording");
+                document.getElementById("status").innerText = "🔴 Registrazione...";
+                audioChunks = [];
+                mediaRecorder.start();
+            }
+        }
+
+        function stopAndSend() {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                document.getElementById("recordBtn").classList.remove("recording");
+                document.getElementById("status").innerText = "Invio in corso...";
+                mediaRecorder.stop();
+            }
+        }
+
+        // --- 4. INVIO AL SERVER ---
+        async function sendAudioToServer(blob) {
+            log("Invio audio al server...", "user");
+            
+            const formData = new FormData();
+            formData.append("audio", blob, "voice.mp3");
+            formData.append("password", sessionPassword); 
+
+            try {
+                // Notare l'URL corretto senza trattini strani
+                const res = await fetch(`${API_URL}/${sessionId}/new-chat`, {
+                    method: "POST",
+                    body: formData
+                });
+                
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.error || "Errore server");
+                }
+
+                const data = await res.json();
+                if(data.transcription) {
+                    log(`Tu hai detto: "${data.transcription}"`, "user");
+                    document.getElementById("status").innerText = "In ascolto...";
+                }
+
+            } catch (e) {
+                log("Errore invio: " + e.message, "sys");
+                document.getElementById("status").innerText = "Errore invio.";
+            }
+        }
+
+        // --- 5. GESTIONE CODA AUDIO (Audio Queue) ---
+        function addToAudioQueue(base64Audio) {
+            audioQueue.push(base64Audio);
+            playNextInQueue();
+        }
+
+        function playNextInQueue() {
+            if (isPlaying || audioQueue.length === 0) return;
+
+            isPlaying = true;
+            const base64Data = audioQueue.shift(); // Prendi il primo elemento
+            
+            // FIX CSP: Convertiamo Base64 in Blob URL
+            const audioBlob = base64ToBlob(base64Data, "audio/mp3");
+            const audioUrl = URL.createObjectURL(audioBlob);
+            
+            const audio = new Audio(audioUrl);
+            
+            audio.onended = () => {
+                isPlaying = false;
+                URL.revokeObjectURL(audioUrl); // Pulizia memoria
+                playNextInQueue(); 
+            };
+
+            audio.onerror = (e) => {
+                console.error("Errore riproduzione audio", e);
+                log("Errore riproduzione audio", "sys");
+                isPlaying = false;
+                URL.revokeObjectURL(audioUrl);
+                playNextInQueue();
+            };
+
+            audio.play().catch(e => {
+                console.error("Autoplay bloccato o errore:", e);
+                isPlaying = false;
+            });
+        }
+
+        // Helper Log
+        function log(msg, type) {
+            const consoleDiv = document.getElementById("console");
+            const p = document.createElement("p");
+            p.className = "log-" + type;
+            const time = new Date().toLocaleTimeString();
+            p.innerText = `[${time}] ${msg}`;
+            consoleDiv.prepend(p);
+        }
+
+    </script>
+</body>
+</html>

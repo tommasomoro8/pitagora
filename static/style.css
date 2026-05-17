@@ -1,0 +1,176 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #1a1a1a;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+}
+
+#canvas-container {
+    flex-grow: 1;
+    height: 100vh;
+    display: block;
+    position: relative;
+    
+    /* LE DUE REGOLE MAGICHE PER IL RESIZE */
+    min-width: 0; 
+    overflow: hidden; 
+}
+
+/* --- STILI DELLA CHAT --- */
+#chat {
+    background-color: #222222; /* Sfondo scuro elegante invece del rosso */
+    width: 300px;
+    flex-shrink: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #333;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#chat-header {
+    padding: 15px 20px;
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #333;
+    color: white;
+}
+
+#chat-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+#chat-messages {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Bolle della chat */
+.message {
+    display: flex;
+    width: 100%;
+}
+
+.message.bot {
+    justify-content: flex-start;
+}
+
+.message.user {
+    justify-content: flex-end;
+}
+
+.bubble {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: white;
+    word-wrap: break-word;
+}
+
+/* Colori delle bolle */
+.message.bot .bubble {
+    background-color: #444444;
+    border-bottom-left-radius: 4px;
+}
+
+.message.user .bubble {
+    background-color: #0078D7; /* Blu stile iMessage/Windows */
+    border-bottom-right-radius: 4px;
+}
+
+/* Scrollbar personalizzata per la chat */
+#chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+#chat-messages::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 10px;
+}
+
+/* Effetto cursore lampeggiante per UTENTE e BOT */
+.bubble.typing::after {
+    content: '▋';
+    margin-left: 5px;
+    animation: blink 1s step-start infinite;
+    color: #aaaaaa; /* o il colore che preferisci */
+}
+
+@keyframes blink { 
+    50% { opacity: 0; } 
+}
+
+@keyframes blink { 
+    50% { opacity: 0; } 
+}
+
+
+#ui-container {
+    position: absolute;
+    bottom: 30px;
+    left: calc(50% - 150px);
+    transform: translateX(-50%);
+    text-align: center;
+    color: white;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px 30px;
+    border-radius: 12px;
+    pointer-events: none; /* Lascia passare i click al canvas 3D */
+    z-index: 10;
+}
+
+h1 { margin: 0 0 5px 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px;}
+p { margin: 0; font-size: 0.9rem; color: #cccccc;}
+.recording { color: #ff4d4d !important; font-weight: bold; }
+
+/* --- SEZIONE SIMULATORI --- */
+#simulators-section {
+    padding: 15px 20px;
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #333;
+    color: white;
+}
+
+#simulators-section h3 {
+    margin: 0 0 0 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.simulator-links {
+    list-style-type: none;
+    padding: 0;
+    margin: 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* Spazio tra i link */
+}
+
+.simulator-links a {
+    color: #0078D7; /* Riprende il colore blu della bolla utente */
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.simulator-links a:hover {
+    color: #66b2ff; /* Azzurro più chiaro al passaggio del mouse */
+    text-decoration: underline;
+}

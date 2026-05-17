@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pitagora Interattivo</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="ui-container">
+        <h1>Pitagora</h1>
+        <p id="status-text">Tieni premuta la <strong>BARRA SPAZIATRICE</strong> per parlare</p>
+    </div>
+
+    <div id="container">
+        <div id="canvas-container"></div>
+        <div id="chat">
+            <div id="simulators-section">
+                <h3>Simulatori</h3>
+            </div>
+                <ul class="simulator-links">
+                    <li><a href="#">Simulatore Numeri</a></li>
+                    <li><a href="#">Simulatore Teorema</a></li>
+                    <li><a href="#">Simulatore Tetraktys</a></li>
+                </ul>
+
+            <div id="chat-header">
+                <h3>Conversazione</h3>
+            </div>
+            <div id="chat-messages">
+                <div class="message bot">
+                    <div class="bubble">Ciao! Tieni premuta la barra spaziatrice per parlarmi.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
+
