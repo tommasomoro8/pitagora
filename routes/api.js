@@ -1,6 +1,8 @@
 const express = require("express")
 const router = express.Router()
 
+const path = require("path")
+
 const fs = require("fs")
 
 const { openai } = require("../services/openai")
@@ -8,6 +10,40 @@ const { db } = require("../services/firebase")
 
 const multer = require("multer")
 const upload = multer({ dest: "uploads/" })
+
+
+const scriptDir = path.join(__dirname, '..', 'static', 'py-scripts');
+
+router.get('/download/numeri', (req, res) => {
+    const file = path.join(scriptDir, 'numeri.py');
+    res.download(file, 'numeri.py', (err) => {
+        if (err) {
+            console.error("Errore durante il download del file numeri.py:", err);
+            if (!res.headersSent) res.status(500).send("Impossibile scaricare il file.");
+        }
+    });
+});
+
+router.get('/download/teorema', (req, res) => {
+    const file = path.join(scriptDir, 'teorema.py');
+    res.download(file, 'teorema.py', (err) => {
+        if (err) {
+            console.error("Errore durante il download del file teorema.py:", err);
+            if (!res.headersSent) res.status(500).send("Impossibile scaricare il file.");
+        }
+    });
+});
+
+router.get('/download/tetraktys', (req, res) => {
+    const file = path.join(scriptDir, 'tetraktys.py');
+    res.download(file, 'tetraktys.py', (err) => {
+        if (err) {
+            console.error("Errore durante il download del file tetraktys.py:", err);
+            if (!res.headersSent) res.status(500).send("Impossibile scaricare il file.");
+        }
+    });
+});
+
 
 const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 const charactersLength = characters.length
